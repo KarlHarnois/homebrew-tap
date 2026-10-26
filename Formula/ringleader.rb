@@ -98,7 +98,7 @@ class Ringleader < Formula
   test do
     assert_match version.to_s, shell_output("#{bin}/ringleader --version")
 
-    doctor = shell_output("#{bin}/ringleader doctor 2>&1", nil)
+    doctor = shell_output("#{bin}/ringleader doctor 2>&1 || true")
     PINNED_TOOLS.each_value do |tool|
       assert_match "#{tool} program: #{opt_libexec}/#{tool}/bin/#{tool}", doctor
     end
