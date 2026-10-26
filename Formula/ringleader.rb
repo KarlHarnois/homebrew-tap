@@ -5,6 +5,12 @@ class Ringleader < Formula
   sha256 "86288726fdc2b0d00767afef87181b58f406e24882093a217fb4000062ca7e60"
   license "MIT"
 
+  bottle do
+    root_url "https://github.com/KarlHarnois/homebrew-tap/releases/download/ringleader-0.1.1"
+    rebuild 1
+    sha256 arm64_sequoia: "8562a2df79591578ddb13858ca90e7ce46df088e5a4a8a9cc6aa5e98cd934e21"
+  end
+
   PINNED_TOOLS = {
     "RINGLEADER_TMUX" => "tmux",
     "RINGLEADER_GIT"  => "git",
