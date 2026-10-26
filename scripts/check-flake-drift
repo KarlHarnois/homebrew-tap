@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Usage: scripts/check-flake-drift
+set -euo pipefail
+
+formula_tools=$(brew ruby -e '
+  formula = Formulary.factory("karlharnois/tap/ringleader")
+  tools = formula.class::PINNED_TOOLS.to_h { |variable, tool| [variable, formula.resource(tool).version.to_s] }
+  puts JSON.generate({ "tag" => "v#{formula.version}", "tools" => tools })
+')
+tag=$(jq -r .tag <<< "$formula_tools")
+
+flake_tools=$(nix eval --json "github:KarlHarnois/ringleader/$tag#packages.aarch64-darwin.default.pinnedTools" \
+  --apply 'builtins.mapAttrs (variable: tool: tool.version)')
+
+expected=$(jq -S . <<< "$flake_tools")
+actual=$(jq -S .tools <<< "$formula_tools")
+if [[ $expected != "$actual" ]]; then
+  echo "The formula bundles $actual, but the flake at $tag pins $expected. Update the formula's resources." >&2
+  exit 1
+fi
+echo "The formula bundles the tools the flake pins at $tag: $actual"

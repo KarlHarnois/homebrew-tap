@@ -1,0 +1,92 @@
+name: Release
+
+on:
+  repository_dispatch:
+    types: [ringleader-release]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: The Ringleader tag to publish, such as v0.1.1
+        required: true
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash -euo pipefail {0}
+
+env:
+  TAG: ${{ github.event.client_payload.tag || inputs.tag }}
+
+jobs:
+  flake-drift:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      publish: ${{ steps.newer.outputs.publish }}
+    steps:
+      - uses: Homebrew/actions/setup-homebrew@4790763c0a3ba4036f72634dc079c4a7dfcd4878 # 2026.10.19.1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Skip a tag older than the formula's
+        id: newer
+        run: |
+          current=$(grep --only-matching --extended-regexp 'tags/v[0-9.]+\.tar\.gz' Formula/ringleader.rb | sed -E 's#tags/v(.*)\.tar\.gz#\1#')
+          requested=${TAG#v}
+          if [[ $(printf '%s\n' "$current" "$requested" | sort -V | tail -n 1) == "$requested" ]]; then
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::The formula already ships $current, which is newer than $TAG."
+          fi
+      - if: steps.newer.outputs.publish == 'true'
+        uses: DeterminateSystems/nix-installer-action@3138316df39ed29be04236d7ffc686fa525866aa # v23
+      - if: steps.newer.outputs.publish == 'true'
+        run: scripts/point-formula-at "$TAG"
+      - if: steps.newer.outputs.publish == 'true'
+        run: scripts/check-flake-drift
+
+  bottle:
+    needs: flake-drift
+    if: needs.flake-drift.outputs.publish == 'true'
+    runs-on: macos-15
+    timeout-minutes: 45
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: Homebrew/actions/setup-homebrew@4790763c0a3ba4036f72634dc079c4a7dfcd4878 # 2026.10.19.1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - run: scripts/point-formula-at "$TAG"
+      - run: brew install --build-bottle karlharnois/tap/ringleader
+      - run: brew test karlharnois/tap/ringleader
+      - run: brew audit --strict --formula karlharnois/tap/ringleader
+      - name: Bottle the build
+        run: brew bottle --json --root-url="https://github.com/$GITHUB_REPOSITORY/releases/download/ringleader-${TAG#v}" karlharnois/tap/ringleader
+      - name: Publish the bottle
+        run: |
+          release="ringleader-${TAG#v}"
+          bottle_json=(ringleader--*.bottle.json)
+          local_file=$(jq -r '.[].bottle.tags[].local_filename' "${bottle_json[@]}")
+          remote_file=$(jq -r '.[].bottle.tags[].filename' "${bottle_json[@]}")
+          mv "$local_file" "$remote_file"
+          gh release view "$release" > /dev/null 2>&1 || gh release create "$release" --title "Ringleader ${TAG#v}" --notes "The Homebrew bottle of Ringleader $TAG."
+          gh release upload "$release" "$remote_file" --clobber
+          brew bottle --merge --write --no-commit "${bottle_json[@]}"
+      - name: Commit the formula
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Formula/ringleader.rb
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit --message "ringleader ${TAG#v}"
+          gh auth setup-git
+          git push origin HEAD:main

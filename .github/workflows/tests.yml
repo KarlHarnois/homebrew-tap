@@ -1,0 +1,35 @@
+name: Tests
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash -euo pipefail {0}
+
+jobs:
+  flake-drift:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: Homebrew/actions/setup-homebrew@4790763c0a3ba4036f72634dc079c4a7dfcd4878 # 2026.10.19.1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: DeterminateSystems/nix-installer-action@3138316df39ed29be04236d7ffc686fa525866aa # v23
+      - name: Compare the bundled tools with the flake
+        run: scripts/check-flake-drift
+
+  build:
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: Homebrew/actions/setup-homebrew@4790763c0a3ba4036f72634dc079c4a7dfcd4878 # 2026.10.19.1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - run: brew test-bot --only-tap-syntax
+      - run: brew install --build-from-source karlharnois/tap/ringleader
+      - run: brew test karlharnois/tap/ringleader
+      - run: brew audit --strict --formula karlharnois/tap/ringleader

@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# Usage: scripts/point-formula-at <tag>
+set -euo pipefail
+
+tag=$1
+formula=Formula/ringleader.rb
+url="https://github.com/KarlHarnois/ringleader/archive/refs/tags/$tag.tar.gz"
+sha256=$(curl --fail --silent --show-error --location "$url" | shasum -a 256 | cut -d" " -f1)
+
+URL=$url SHA256=$sha256 perl -0pi -e 's/^  url ".*"$/  url "$ENV{URL}"/m; s/^  sha256 ".*"$/  sha256 "$ENV{SHA256}"/m' "$formula"
