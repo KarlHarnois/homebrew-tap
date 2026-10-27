@@ -33,15 +33,20 @@ jobs:
       - uses: Homebrew/actions/setup-homebrew@4790763c0a3ba4036f72634dc079c4a7dfcd4878 # 2026.10.19.1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Skip a tag older than the formula's
+      - name: Start from the latest main
+        run: |
+          git fetch origin main
+          git checkout --detach FETCH_HEAD
+      - name: Skip a tag that is not newer than the formula's
         id: newer
         run: |
           current=$(grep --only-matching --extended-regexp 'tags/v[0-9.]+\.tar\.gz' Formula/ringleader.rb | sed -E 's#tags/v(.*)\.tar\.gz#\1#')
           requested=${TAG#v}
-          if [[ $(printf '%s\n' "$current" "$requested" | sort -V | tail -n 1) == "$requested" ]]; then
+          newest=$(printf '%s\n' "$current" "$requested" | sort -V | tail -n 1)
+          if [[ $requested != "$current" && $newest == "$requested" ]]; then
             echo "publish=true" >> "$GITHUB_OUTPUT"
           else
-            echo "::notice::The formula already ships $current, which is newer than $TAG."
+            echo "::notice::The formula already ships $current, so $TAG has nothing new to publish."
           fi
       - if: steps.newer.outputs.publish == 'true'
         uses: DeterminateSystems/nix-installer-action@3138316df39ed29be04236d7ffc686fa525866aa # v23
@@ -63,6 +68,10 @@ jobs:
       - uses: Homebrew/actions/setup-homebrew@4790763c0a3ba4036f72634dc079c4a7dfcd4878 # 2026.10.19.1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Start from the latest main
+        run: |
+          git fetch origin main
+          git checkout --detach FETCH_HEAD
       - run: scripts/point-formula-at "$TAG"
       - run: brew install --build-bottle karlharnois/tap/ringleader
       - run: brew test karlharnois/tap/ringleader
