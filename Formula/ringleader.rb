@@ -1,13 +1,13 @@
 class Ringleader < Formula
   desc "Tmux session manager for AI coding agents"
   homepage "https://github.com/KarlHarnois/ringleader"
-  url "https://github.com/KarlHarnois/ringleader/archive/refs/tags/v0.2.1.tar.gz"
-  sha256 "864574c1aebce870437e62203de00365d72de6ef076acfc99481e044a35f57a4"
+  url "https://github.com/KarlHarnois/ringleader/archive/refs/tags/v0.2.2.tar.gz"
+  sha256 "ccd16e88998cb823c09c13729b97c6e95f5c3b44113776a1466227b14fc0d85b"
   license "MIT"
 
   bottle do
-    root_url "https://github.com/KarlHarnois/homebrew-tap/releases/download/ringleader-0.2.1"
-    sha256 arm64_sequoia: "0d36d6ec00ed08f255bce10e74301d6273d09f145b5ec7e789cad130094997bc"
+    root_url "https://github.com/KarlHarnois/homebrew-tap/releases/download/ringleader-0.2.2"
+    sha256 arm64_sequoia: "d5662c41098aa860c740d2552c74e85b3f8c573f7e03712e428fce43f8269f92"
   end
 
   PINNED_TOOLS = {
